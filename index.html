@@ -1,48 +1,51 @@
-<!-- index.md : GitHub Pages MOS Evaluation (Audio-Visual Video Only) -->
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MOS Evaluation</title>
 
 <style>
 body {
   font-family: Arial, sans-serif;
-  max-width: 960px;
+  max-width: 1000px;
   margin: auto;
 }
-.stimulus-block {
+
+.stimulus {
   margin-bottom: 50px;
   padding-bottom: 30px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #ccc;
 }
+
 .mos label {
   display: block;
   margin: 4px 0;
 }
+
 button {
-  padding: 12px 30px;
   font-size: 16px;
+  padding: 12px 30px;
   margin: 30px 0;
 }
 </style>
+</head>
 
-version: 260129.0
+<body>
 
-# Mean Opinion Score (MOS) Evaluation
+<h2>Mean Opinion Score (MOS) Evaluation</h2>
 
-Please watch each video **with audio enabled** and rate the overall perceived quality.
+<p>
+Please watch each video <b>with audio enabled</b> and rate the overall quality.
+</p>
 
-- Use **headphones** if possible.
-- Keep the **playback volume unchanged** during the experiment.
-- Each video must be played before rating.
+<div id="container"></div>
 
----
-
-<div id="stimulus"></div>
-
-<button id="nextBtn" onclick="nextPage()">Next Page</button>
+<button id="nextBtn">Next</button>
 
 <script>
-/************************************************************
+/********************************************************
  * ✅ EDIT ONLY THIS PART
- ************************************************************/
+ ********************************************************/
 
 const ITEMS_PER_PAGE = 5;
 
@@ -59,67 +62,86 @@ const stimuli = [
   { id: "v10", file: "./samples/video/1_rms/v_04.mp4" }
 ];
 
-/************************************************************
+/********************************************************
  * internal logic
- ************************************************************/
+ ********************************************************/
 
 let trials;
-let pageIndex = 0;
+let page = 0;
 let results = [];
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
+/* shuffle */
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+    [a[i], a[j]] = [a[j], a[i]];
   }
 }
 
-// participant-wise randomization
-if (sessionStorage.getItem("trialOrder")) {
-  trials = JSON.parse(sessionStorage.getItem("trialOrder"));
+/* participant-wise randomization */
+if (sessionStorage.getItem("mos_trials")) {
+  trials = JSON.parse(sessionStorage.getItem("mos_trials"));
 } else {
   trials = [...stimuli];
   shuffle(trials);
-  sessionStorage.setItem("trialOrder", JSON.stringify(trials));
+  sessionStorage.setItem("mos_trials", JSON.stringify(trials));
 }
 
 function loadPage() {
-  const container = document.getElementById("stimulus");
+  const container = document.getElementById("container");
   container.innerHTML = "";
 
-  const start = pageIndex * ITEMS_PER_PAGE;
-  const pageTrials = trials.slice(start, start + ITEMS_PER_PAGE);
+  const start = page * ITEMS_PER_PAGE;
+  const current = trials.slice(start, start + ITEMS_PER_PAGE);
 
-  pageTrials.forEach((t, i) => {
-    const div = document.createElement("div");
-    div.className = "stimulus-block";
+  current.forEach((t, idx) => {
 
-    div.innerHTML = `
-      <b>Stimulus ${start + i + 1}</b><br><br>
-      <video width="720" controls preload="auto">
-        <source src="${t.file}" type="video/mp4">
-      </video>
+    const block = document.createElement("div");
+    block.className = "stimulus";
 
-      <div class="mos">
-        <p><b>Rate perceived quality:</b></p>
-        <label><input type="radio" name="mos_${t.id}" value="5"> 5 Excellent</label>
-        <label><input type="radio" name="mos_${t.id}" value="4"> 4 Good</label>
-        <label><input type="radio" name="mos_${t.id}" value="3"> 3 Fair</label>
-        <label><input type="radio" name="mos_${t.id}" value="2"> 2 Poor</label>
-        <label><input type="radio" name="mos_${t.id}" value="1"> 1 Bad</label>
-      </div>
+    const title = document.createElement("h4");
+    title.textContent = `Stimulus ${start + idx + 1}`;
+    block.appendChild(title);
+
+    /* ---------- video ---------- */
+    const video = document.createElement("video");
+    video.width = 800;
+    video.controls = true;
+
+    const source = document.createElement("source");
+    source.src = t.file;
+    source.type = "video/mp4";
+
+    video.appendChild(source);
+    block.appendChild(video);
+
+    /* ---------- MOS ---------- */
+    const mos = document.createElement("div");
+    mos.className = "mos";
+
+    mos.innerHTML = `
+      <p><b>Overall quality:</b></p>
+      <label><input type="radio" name="mos_${t.id}" value="5"> 5 – Excellent</label>
+      <label><input type="radio" name="mos_${t.id}" value="4"> 4 – Good</label>
+      <label><input type="radio" name="mos_${t.id}" value="3"> 3 – Fair</label>
+      <label><input type="radio" name="mos_${t.id}" value="2"> 2 – Poor</label>
+      <label><input type="radio" name="mos_${t.id}" value="1"> 1 – Bad</label>
     `;
 
-    container.appendChild(div);
+    block.appendChild(mos);
+    container.appendChild(block);
   });
 }
 
-function nextPage() {
-  const start = pageIndex * ITEMS_PER_PAGE;
-  const pageTrials = trials.slice(start, start + ITEMS_PER_PAGE);
+document.getElementById("nextBtn").onclick = () => {
 
-  for (const t of pageTrials) {
-    const sel = document.querySelector(`input[name="mos_${t.id}"]:checked`);
+  const start = page * ITEMS_PER_PAGE;
+  const current = trials.slice(start, start + ITEMS_PER_PAGE);
+
+  for (const t of current) {
+    const sel = document.querySelector(
+      `input[name="mos_${t.id}"]:checked`
+    );
     if (!sel) {
       alert("Please rate all videos on this page.");
       return;
@@ -128,20 +150,20 @@ function nextPage() {
     results.push({
       stimulus: t.id,
       mos: sel.value,
-      page: pageIndex + 1
+      page: page + 1
     });
   }
 
-  pageIndex++;
+  page++;
 
-  if (pageIndex * ITEMS_PER_PAGE < trials.length) {
+  if (page * ITEMS_PER_PAGE < trials.length) {
     loadPage();
   } else {
-    downloadResults();
+    finish();
   }
-}
+};
 
-function downloadResults() {
+function finish() {
   const header = "stimulus,mos,page\n";
   const rows = results.map(r =>
     `${r.stimulus},${r.mos},${r.page}`
@@ -155,9 +177,14 @@ function downloadResults() {
   a.download = "mos_results.csv";
   a.click();
 
-  document.body.innerHTML = "<h2>Thank you for your participation.</h2><p>Your results have been downloaded.</p>";
+  document.body.innerHTML =
+    "<h2>Thank you for your participation.</h2>" +
+    "<p>Results have been downloaded.</p>";
 }
 
+/* start */
 loadPage();
 </script>
 
+</body>
+</html>
