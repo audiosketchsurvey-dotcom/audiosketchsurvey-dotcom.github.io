@@ -34,19 +34,16 @@ button {
 
 <h2>Mean Opinion Score (MOS) Evaluation</h2>
 
-<p>
-version: 260129.01
-Please watch each video <b>with audio enabled</b> and rate the overall quality.
-</p>
+<p>Please watch each video with audio enabled and rate the overall quality.</p>
 
 <div id="container"></div>
 
 <button id="nextBtn">Next</button>
 
 <script>
-/********************************************************
- * ✅ EDIT ONLY THIS PART
- ********************************************************/
+/***********************
+ * CONFIG
+ ***********************/
 
 const ITEMS_PER_PAGE = 5;
 
@@ -63,27 +60,31 @@ const stimuli = [
   { id: "v10", file: "./samples/video/1_rms/v_04.mp4" }
 ];
 
-/********************************************************
- * internal logic
- ********************************************************/
 
-let trials;
+
+/***********************
+ * VARIABLES
+ ***********************/
+let trials = [];
 let page = 0;
 let results = [];
 
-/* shuffle */
-function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) {
+/***********************
+ * FUNCTIONS
+ ***********************/
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
   }
 }
 
-/* participant-wise randomization */
 if (sessionStorage.getItem("mos_trials")) {
   trials = JSON.parse(sessionStorage.getItem("mos_trials"));
 } else {
-  trials = [...stimuli];
+  trials = stimuli.slice();
   shuffle(trials);
   sessionStorage.setItem("mos_trials", JSON.stringify(trials));
 }
@@ -95,16 +96,17 @@ function loadPage() {
   const start = page * ITEMS_PER_PAGE;
   const current = trials.slice(start, start + ITEMS_PER_PAGE);
 
-  current.forEach((t, idx) => {
+  for (let i = 0; i < current.length; i++) {
+    const t = current[i];
 
     const block = document.createElement("div");
     block.className = "stimulus";
 
     const title = document.createElement("h4");
-    title.textContent = `Stimulus ${start + idx + 1}`;
+    title.textContent = "Stimulus " + (start + i + 1);
     block.appendChild(title);
 
-    /* ---------- video ---------- */
+    /* video */
     const video = document.createElement("video");
     video.width = 800;
     video.controls = true;
@@ -116,35 +118,43 @@ function loadPage() {
     video.appendChild(source);
     block.appendChild(video);
 
-    /* ---------- MOS ---------- */
-    const mos = document.createElement("div");
-    mos.className = "mos";
+    /* MOS */
+    const mosTitle = document.createElement("p");
+    mosTitle.innerHTML = "<b>Overall quality:</b>";
+    block.appendChild(mosTitle);
 
-    mos.innerHTML = `
-      <p><b>Overall quality:</b></p>
-      <label><input type="radio" name="mos_${t.id}" value="5"> 5 – Excellent</label>
-      <label><input type="radio" name="mos_${t.id}" value="4"> 4 – Good</label>
-      <label><input type="radio" name="mos_${t.id}" value="3"> 3 – Fair</label>
-      <label><input type="radio" name="mos_${t.id}" value="2"> 2 – Poor</label>
-      <label><input type="radio" name="mos_${t.id}" value="1"> 1 – Bad</label>
-    `;
+    for (let score = 5; score >= 1; score--) {
+      const label = document.createElement("label");
 
-    block.appendChild(mos);
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "mos_" + t.id;
+      input.value = score;
+
+      label.appendChild(input);
+      label.appendChild(
+        document.createTextNode(" " + score)
+      );
+
+      block.appendChild(label);
+    }
+
     container.appendChild(block);
-  });
+  }
 }
 
-document.getElementById("nextBtn").onclick = () => {
+document.getElementById("nextBtn").onclick = function () {
 
   const start = page * ITEMS_PER_PAGE;
   const current = trials.slice(start, start + ITEMS_PER_PAGE);
 
-  for (const t of current) {
+  for (let i = 0; i < current.length; i++) {
+    const t = current[i];
     const sel = document.querySelector(
-      `input[name="mos_${t.id}"]:checked`
+      "input[name='mos_" + t.id + "']:checked"
     );
     if (!sel) {
-      alert("Please rate all videos on this page.");
+      alert("Please rate all videos.");
       return;
     }
 
@@ -165,12 +175,13 @@ document.getElementById("nextBtn").onclick = () => {
 };
 
 function finish() {
-  const header = "stimulus,mos,page\n";
-  const rows = results.map(r =>
-    `${r.stimulus},${r.mos},${r.page}`
-  ).join("\n");
+  let csv = "stimulus,mos,page\n";
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    csv += r.stimulus + "," + r.mos + "," + r.page + "\n";
+  }
 
-  const blob = new Blob([header + rows], { type: "text/csv" });
+  const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
@@ -180,12 +191,12 @@ function finish() {
 
   document.body.innerHTML =
     "<h2>Thank you for your participation.</h2>" +
-    "<p>Results have been downloaded.</p>";
+    "<p>Results downloaded.</p>";
 }
 
-/* start */
 loadPage();
 </script>
 
 </body>
 </html>
+
