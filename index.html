@@ -7,7 +7,7 @@
 <style>
 body {
   font-family: Arial, sans-serif;
-  max-width: 1000px;
+  max-width: 1100px;
   margin: auto;
 }
 
@@ -17,7 +17,7 @@ body {
   border-bottom: 1px solid #ccc;
 }
 
-.mos label {
+label {
   display: block;
   margin: 4px 0;
 }
@@ -33,54 +33,54 @@ button {
 <body>
 
 <h2>Mean Opinion Score (MOS) Evaluation</h2>
-
-<p>Please watch each video with audio enabled and rate the overall quality.</p>
+<p>version1;Please watch each video with audio enabled and rate the overall quality.</p>
 
 <div id="container"></div>
 
 <button id="nextBtn">Next</button>
 
 <script>
-/***********************
- * CONFIG
- ***********************/
+/********************************************************
+ * CONFIGURATION
+ ********************************************************/
 
 const ITEMS_PER_PAGE = 5;
 
+/* FIXED SYNTAX (commas added) */
 const stimuli = [
   { id: "v01", file: "./samples/video/0_ts/v_00.mp4" },
   { id: "v02", file: "./samples/video/0_ts/v_01.mp4" },
   { id: "v03", file: "./samples/video/0_ts/v_02.mp4" },
   { id: "v04", file: "./samples/video/0_ts/v_03.mp4" },
   { id: "v05", file: "./samples/video/0_ts/v_04.mp4" },
-  { id: "v06", file: "./samples/video/1_rms/v_00.mp4" }
+
+  { id: "v06", file: "./samples/video/1_rms/v_00.mp4" },
   { id: "v07", file: "./samples/video/1_rms/v_01.mp4" },
-  { id: "v08", file: "./samples/video/1_rms/v_02.mp4" }
+  { id: "v08", file: "./samples/video/1_rms/v_02.mp4" },
   { id: "v09", file: "./samples/video/1_rms/v_03.mp4" },
   { id: "v10", file: "./samples/video/1_rms/v_04.mp4" }
 ];
 
-
-
-/***********************
+/********************************************************
  * VARIABLES
- ***********************/
+ ********************************************************/
+
 let trials = [];
-let page = 0;
+let pageIndex = 0;
 let results = [];
 
-/***********************
+/********************************************************
  * FUNCTIONS
- ***********************/
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
+ ********************************************************/
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    const tmp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = tmp;
+    [array[i], array[j]] = [array[j], array[i]];
   }
 }
 
+/* participant-wise randomization */
 if (sessionStorage.getItem("mos_trials")) {
   trials = JSON.parse(sessionStorage.getItem("mos_trials"));
 } else {
@@ -93,22 +93,21 @@ function loadPage() {
   const container = document.getElementById("container");
   container.innerHTML = "";
 
-  const start = page * ITEMS_PER_PAGE;
+  const start = pageIndex * ITEMS_PER_PAGE;
   const current = trials.slice(start, start + ITEMS_PER_PAGE);
 
-  for (let i = 0; i < current.length; i++) {
-    const t = current[i];
+  current.forEach((t, idx) => {
 
     const block = document.createElement("div");
     block.className = "stimulus";
 
     const title = document.createElement("h4");
-    title.textContent = "Stimulus " + (start + i + 1);
+    title.textContent = `Stimulus ${start + idx + 1}`;
     block.appendChild(title);
 
     /* video */
     const video = document.createElement("video");
-    video.width = 800;
+    video.width = 900;
     video.controls = true;
 
     const source = document.createElement("source");
@@ -119,9 +118,9 @@ function loadPage() {
     block.appendChild(video);
 
     /* MOS */
-    const mosTitle = document.createElement("p");
-    mosTitle.innerHTML = "<b>Overall quality:</b>";
-    block.appendChild(mosTitle);
+    const q = document.createElement("p");
+    q.innerHTML = "<b>Overall perceived quality:</b>";
+    block.appendChild(q);
 
     for (let score = 5; score >= 1; score--) {
       const label = document.createElement("label");
@@ -132,54 +131,60 @@ function loadPage() {
       input.value = score;
 
       label.appendChild(input);
-      label.appendChild(
-        document.createTextNode(" " + score)
-      );
+      label.appendChild(document.createTextNode(" " + score));
 
       block.appendChild(label);
     }
 
     container.appendChild(block);
-  }
+  });
 }
+
+/********************************************************
+ * NEXT BUTTON
+ ********************************************************/
 
 document.getElementById("nextBtn").onclick = function () {
 
-  const start = page * ITEMS_PER_PAGE;
+  const start = pageIndex * ITEMS_PER_PAGE;
   const current = trials.slice(start, start + ITEMS_PER_PAGE);
 
-  for (let i = 0; i < current.length; i++) {
-    const t = current[i];
-    const sel = document.querySelector(
-      "input[name='mos_" + t.id + "']:checked"
+  for (const t of current) {
+    const selected = document.querySelector(
+      `input[name="mos_${t.id}"]:checked`
     );
-    if (!sel) {
-      alert("Please rate all videos.");
+
+    if (!selected) {
+      alert("Please rate all videos on this page.");
       return;
     }
 
     results.push({
       stimulus: t.id,
-      mos: sel.value,
-      page: page + 1
+      mos: selected.value,
+      page: pageIndex + 1
     });
   }
 
-  page++;
+  pageIndex++;
 
-  if (page * ITEMS_PER_PAGE < trials.length) {
+  if (pageIndex * ITEMS_PER_PAGE < trials.length) {
     loadPage();
   } else {
     finish();
   }
 };
 
+/********************************************************
+ * FINISH & DOWNLOAD
+ ********************************************************/
+
 function finish() {
   let csv = "stimulus,mos,page\n";
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    csv += r.stimulus + "," + r.mos + "," + r.page + "\n";
-  }
+
+  results.forEach(r => {
+    csv += `${r.stimulus},${r.mos},${r.page}\n`;
+  });
 
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -189,9 +194,7 @@ function finish() {
   a.download = "mos_results.csv";
   a.click();
 
-  document.body.innerHTML =
-    "<h2>Thank you for your participation.</h2>" +
-    "<p>Results downloaded.</p>";
+  document.body.innerHTML = "<h2>Thank you for your participation.</h2>";
 }
 
 loadPage();
@@ -199,4 +202,3 @@ loadPage();
 
 </body>
 </html>
-
